@@ -47,6 +47,10 @@ export interface AppSettings {
   lastSyncAt?: string;
   aiEnabled?: boolean;
   aiAutoParse?: boolean;
+  aiSafeMode?: boolean;
+  aiRedactDescriptions?: boolean;
+  aiSendOnlySummary?: boolean;
+  aiStoreChatLocally?: boolean;
 }
 
 export interface FirebaseConfig {

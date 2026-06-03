@@ -54,6 +54,12 @@ export class FinVaultDB extends Dexie {
         theme: 'system',
         firebaseEnabled: false,
         syncEnabled: false,
+        aiEnabled: true,
+        aiAutoParse: true,
+        aiSafeMode: true,
+        aiRedactDescriptions: true,
+        aiSendOnlySummary: true,
+        aiStoreChatLocally: true,
       };
       await this.settings.add(defaults);
     }

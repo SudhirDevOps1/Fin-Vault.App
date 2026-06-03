@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import {
   Wallet, Target, Briefcase, Receipt, Repeat, Hash, Search,
-  ChevronRight, Sparkles, PiggyBank, CreditCard, FileSpreadsheet,
-  TrendingUp, Calculator, IndianRupee
+  ChevronRight, Sparkles, PiggyBank, CreditCard, TrendingUp, Calculator
 } from 'lucide-react';
 import { Accounts } from './Accounts';
 import { Budgets } from './Budgets';
@@ -13,35 +12,16 @@ import { RecurringManager } from './RecurringManager';
 import { BillReminders } from './BillReminders';
 import { TagManager } from './TagManager';
 import { AdvancedSearch } from './AdvancedSearch';
-import { BankCSVImport } from './BankCSVImport';
-import { NetWorth } from './NetWorth';
+import { NetWorthDashboard } from './NetWorthDashboard';
 import { TaxEstimator } from './TaxEstimator';
-import { EMICalculator } from './EMICalculator';
+import { AIAssistantPanel } from './AIAssistantPanel';
 
-type Section = 'home' | 'accounts' | 'budgets' | 'goals' | 'investments' | 'debts'
-  | 'recurring' | 'bills' | 'tags' | 'search' | 'csv' | 'networth' | 'tax' | 'emi';
-
-const COMPONENTS: Record<Exclude<Section, 'home'>, React.FC> = {
-  accounts: Accounts,
-  budgets: Budgets,
-  goals: Goals,
-  investments: Investments,
-  debts: DebtTracker,
-  recurring: RecurringManager,
-  bills: BillReminders,
-  tags: TagManager,
-  search: AdvancedSearch,
-  csv: BankCSVImport,
-  networth: NetWorth,
-  tax: TaxEstimator,
-  emi: EMICalculator,
-};
+type Section = 'home' | 'accounts' | 'budgets' | 'goals' | 'investments' | 'debts' | 'recurring' | 'bills' | 'tags' | 'search' | 'networth' | 'tax';
 
 export function More() {
   const [section, setSection] = useState<Section>('home');
 
   if (section !== 'home') {
-    const Component = COMPONENTS[section];
     return (
       <div className="min-h-screen pb-24 lg:pb-8">
         <div className="max-w-[1200px] mx-auto p-4 lg:p-8">
@@ -51,26 +31,34 @@ export function More() {
           >
             ← Back to all features
           </button>
-          <Component />
+          {section === 'accounts' && <Accounts />}
+          {section === 'budgets' && <Budgets />}
+          {section === 'goals' && <Goals />}
+          {section === 'investments' && <Investments />}
+          {section === 'debts' && <DebtTracker />}
+          {section === 'recurring' && <RecurringManager />}
+          {section === 'bills' && <BillReminders />}
+          {section === 'tags' && <TagManager />}
+          {section === 'search' && <AdvancedSearch />}
+          {section === 'networth' && <NetWorthDashboard />}
+          {section === 'tax' && <TaxEstimator />}
         </div>
       </div>
     );
   }
 
-  const features: { id: Section; label: string; desc: string; icon: any; color: string; badge?: string }[] = [
-    { id: 'csv', label: 'Bank CSV Import', desc: 'HDFC, SBI, ICICI, Axis auto-detect', icon: FileSpreadsheet, color: 'from-blue-500 to-cyan-600', badge: '🔥 HOT' },
-    { id: 'networth', label: 'Net Worth Dashboard', desc: 'Assets vs Liabilities + trend chart', icon: TrendingUp, color: 'from-violet-500 to-purple-600', badge: '🔥 HOT' },
-    { id: 'tax', label: 'Indian Tax Estimator', desc: 'Old vs New regime, 80C/80D deductions', icon: IndianRupee, color: 'from-orange-500 to-red-600', badge: '🔥 HOT' },
-    { id: 'emi', label: 'EMI Calculator', desc: 'Loan EMI with amortization schedule', icon: Calculator, color: 'from-emerald-500 to-teal-600', badge: '🔥 HOT' },
-    { id: 'accounts', label: 'Accounts & Wallets', desc: 'Multi-account tracking with transfers', icon: Wallet, color: 'from-blue-500 to-indigo-600' },
-    { id: 'budgets', label: 'Budgets', desc: 'Weekly, monthly, yearly spending caps', icon: PiggyBank, color: 'from-violet-500 to-indigo-600' },
-    { id: 'goals', label: 'Savings Goals', desc: 'Track progress towards your dreams', icon: Target, color: 'from-emerald-500 to-teal-600' },
-    { id: 'investments', label: 'Investments', desc: 'Stocks, MFs, crypto, gold, FDs', icon: Briefcase, color: 'from-amber-500 to-orange-600' },
-    { id: 'debts', label: 'Debts & Loans', desc: 'EMIs, credit cards, mortgages', icon: CreditCard, color: 'from-red-500 to-rose-600' },
-    { id: 'recurring', label: 'Recurring Transactions', desc: 'Auto-add rent, salary, subscriptions', icon: Repeat, color: 'from-pink-500 to-rose-600' },
-    { id: 'bills', label: 'Bill Reminders', desc: 'Never miss a due date', icon: Receipt, color: 'from-orange-500 to-amber-600' },
-    { id: 'tags', label: 'Tags & Hashtags', desc: 'Organize with #tags', icon: Hash, color: 'from-cyan-500 to-blue-600' },
-    { id: 'search', label: 'Advanced Search', desc: 'Powerful filters & export', icon: Search, color: 'from-purple-500 to-fuchsia-600' },
+  const features = [
+    { id: 'accounts' as Section, label: 'Accounts & Wallets', desc: 'Multi-account tracking with transfers', icon: Wallet, color: 'from-blue-500 to-cyan-600', badge: 'NEW' },
+    { id: 'budgets' as Section, label: 'Budgets', desc: 'Weekly, monthly, yearly caps', icon: PiggyBank, color: 'from-violet-500 to-indigo-600', badge: 'NEW' },
+    { id: 'goals' as Section, label: 'Savings Goals', desc: 'Track progress towards dreams', icon: Target, color: 'from-emerald-500 to-teal-600', badge: 'NEW' },
+    { id: 'investments' as Section, label: 'Investments', desc: 'Stocks, MFs, crypto, gold, FDs', icon: Briefcase, color: 'from-amber-500 to-orange-600', badge: 'NEW' },
+    { id: 'debts' as Section, label: 'Debts & Loans', desc: 'EMIs, credit cards, mortgages', icon: CreditCard, color: 'from-red-500 to-rose-600', badge: 'NEW' },
+    { id: 'recurring' as Section, label: 'Recurring Transactions', desc: 'Auto-add rent, salary, subscriptions', icon: Repeat, color: 'from-pink-500 to-rose-600', badge: 'NEW' },
+    { id: 'bills' as Section, label: 'Bill Reminders', desc: 'Never miss a due date', icon: Receipt, color: 'from-orange-500 to-amber-600', badge: 'NEW' },
+    { id: 'tags' as Section, label: 'Tags & Hashtags', desc: 'Organize with #tags', icon: Hash, color: 'from-cyan-500 to-blue-600', badge: 'NEW' },
+    { id: 'search' as Section, label: 'Advanced Search', desc: 'Powerful filters & export', icon: Search, color: 'from-purple-500 to-fuchsia-600', badge: 'NEW' },
+    { id: 'networth' as Section, label: 'Net Worth Dashboard', desc: 'Track assets vs liabilities', icon: TrendingUp, color: 'from-emerald-500 to-teal-600', badge: 'NEW' },
+    { id: 'tax' as Section, label: 'Indian Tax Estimator', desc: 'Old vs New regime, 80C/80D', icon: Calculator, color: 'from-amber-500 to-orange-600', badge: 'NEW' },
   ];
 
   return (
@@ -85,6 +73,22 @@ export function More() {
           </div>
           <p className="text-zinc-600 dark:text-zinc-400">Advanced tools for complete financial management</p>
         </div>
+
+        <AIAssistantPanel
+          pageKey="more-home"
+          title="AI Wealth & Strategy Assistant"
+          context={{
+            page: 'more-home',
+            availableModules: features.map(f => f.label),
+            featureCount: features.length,
+          }}
+          suggestions={[
+            'Which feature should I use first?',
+            'Help me build a better money system',
+            'How should I plan savings, debt, and investing together?',
+            'What should I track weekly vs monthly?'
+          ]}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map(f => {
@@ -102,7 +106,7 @@ export function More() {
                       <Icon className="w-6 h-6 text-white" />
                     </div>
                     {f.badge && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-600 text-white">
                         {f.badge}
                       </span>
                     )}

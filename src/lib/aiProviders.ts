@@ -308,6 +308,174 @@ export function getActiveProvider(): AIProviderConfig | null {
   return enabled.length > 0 ? enabled[0] : null;
 }
 
+export interface AIPrivacyConfig {
+  safeMode: boolean;
+  redactDescriptions: boolean;
+  sendOnlySummary: boolean;
+  storeChatLocally: boolean;
+}
+
+const AI_PRIVACY_KEY = 'finvault_ai_privacy';
+
+export function getAIPrivacyConfig(): AIPrivacyConfig {
+  const stored = localStorage.getItem(AI_PRIVACY_KEY);
+  if (stored) {
+    try {
+      return JSON.parse(stored) as AIPrivacyConfig;
+    } catch {
+      // ignore parse failure
+    }
+  }
+  return {
+    safeMode: true,
+    redactDescriptions: true,
+    sendOnlySummary: true,
+    storeChatLocally: true,
+  };
+}
+
+export function saveAIPrivacyConfig(config: AIPrivacyConfig) {
+  localStorage.setItem(AI_PRIVACY_KEY, JSON.stringify(config));
+}
+
+function maskAccountLikeText(input: string): string {
+  return input
+    .replace(/\b\d{9,18}\b/g, '[redacted-number]')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[redacted-email]')
+    .replace(/[a-z0-9._-]+@[a-z]+/gi, '[redacted-upi]')
+    .replace(/\b(?:acc|a\/c|account|card|upi|txn|ref|id)\s*[:#-]?\s*[a-z0-9*_-]+/gi, '[redacted-reference]');
+}
+
+function sanitizeDescription(description: string, redactDescriptions: boolean): string {
+  if (!redactDescriptions) return maskAccountLikeText(description);
+  const cleaned = description
+    .replace(/#[\w\u0900-\u097F]+/g, '#tag')
+    .replace(/\b[A-Z][A-Z0-9.]{2,}\b/g, '[merchant]')
+    .replace(/\b\d+[A-Za-z]+\b/g, '[ref]');
+  return maskAccountLikeText(cleaned);
+}
+
+export function buildSafeFinanceContext<T>(input: T, config = getAIPrivacyConfig()): T {
+  if (!config.safeMode) return input;
+
+  const walk = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(walk);
+    if (value && typeof value === 'object') {
+      const obj = value as Record<string, unknown>;
+      const out: Record<string, unknown> = {};
+      Object.entries(obj).forEach(([key, val]) => {
+        if (['id', 'receiptImage', 'pinHash', 'pinSalt', 'apiKey', 'authDomain', 'appId', 'messagingSenderId', 'storageBucket'].includes(key)) {
+          return;
+        }
+        if (key === 'description' && typeof val === 'string') {
+          out[key] = sanitizeDescription(val, config.redactDescriptions);
+          return;
+        }
+        if (key === 'date' && typeof val === 'string') {
+          out[key] = val.slice(0, 10);
+          return;
+        }
+        out[key] = walk(val);
+      });
+      return out;
+    }
+    if (typeof value === 'string') return maskAccountLikeText(value);
+    return value;
+  };
+
+  return walk(input) as T;
+}
+
+function buildSummaryOnlyContext(context: Record<string, unknown>) {
+  const txs = Array.isArray(context.transactions) ? context.transactions as Array<Record<string, unknown>> : [];
+  const income = txs.filter(t => Number(t.amount) > 0).reduce((s, t) => s + Number(t.amount || 0), 0);
+  const expense = Math.abs(txs.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Number(t.amount || 0), 0));
+  const categories = txs.reduce<Record<string, number>>((acc, tx) => {
+    const cat = String(tx.category || 'other');
+    const amt = Math.abs(Number(tx.amount || 0));
+    if (Number(tx.amount) < 0) acc[cat] = (acc[cat] || 0) + amt;
+    return acc;
+  }, {});
+  return {
+    transactionCount: txs.length,
+    totalIncome: income,
+    totalExpense: expense,
+    net: income - expense,
+    topExpenseCategories: Object.entries(categories)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([category, amount]) => ({ category, amount })),
+    ...Object.fromEntries(Object.entries(context).filter(([k]) => k !== 'transactions')),
+  };
+}
+
+export async function askFinanceAssistant(
+  question: string,
+  context: Record<string, unknown>,
+  providerConfig?: AIProviderConfig
+): Promise<string> {
+  const privacy = getAIPrivacyConfig();
+  const config = providerConfig || getActiveProvider();
+  const safeContext = buildSafeFinanceContext(context, privacy);
+  const finalContext = privacy.sendOnlySummary ? buildSummaryOnlyContext(safeContext) : safeContext;
+
+  if (!config) {
+    return localFinanceAssistant(question, finalContext);
+  }
+
+  const systemPrompt = `You are FinVault AI, a privacy-first personal finance assistant.
+Rules:
+- Never ask for or infer account numbers, card numbers, or personal identifiers.
+- Work only with the provided SAFE context.
+- Be concise, practical, and action-oriented.
+- Output plain text only.
+- If data is limited, clearly say so.
+- Suggest savings, risk areas, budgeting tips, tax-awareness, and trend observations.
+- Do not mention sending data anywhere.
+- Respect that the app is offline-first and privacy-first.`;
+
+  const userPrompt = `Question: ${question}\n\nSafe context JSON:\n${JSON.stringify(finalContext, null, 2)}`;
+
+  try {
+    const response = await callAIProvider(config, systemPrompt, userPrompt);
+    return String(response).trim();
+  } catch {
+    return localFinanceAssistant(question, finalContext);
+  }
+}
+
+function localFinanceAssistant(question: string, context: Record<string, unknown>): string {
+  const q = question.toLowerCase();
+  const income = Number(context.totalIncome || 0);
+  const expense = Number(context.totalExpense || 0);
+  const net = Number(context.net || income - expense);
+  const count = Number(context.transactionCount || 0);
+  const topCats = Array.isArray(context.topExpenseCategories) ? context.topExpenseCategories as Array<{ category: string; amount: number }> : [];
+  const top = topCats[0];
+
+  if (q.includes('saving') || q.includes('save') || q.includes('bachat')) {
+    if (net <= 0) return `You are not saving right now. Focus on reducing ${top ? top.category : 'top expenses'} and set a weekly cap.`;
+    const rate = income > 0 ? Math.round((net / income) * 100) : 0;
+    return `You are saving ₹${net.toLocaleString('en-IN')} with an estimated savings rate of ${rate}%. To improve further, review ${top ? top.category : 'your largest expense category'} first.`;
+  }
+
+  if (q.includes('budget') || q.includes('spend') || q.includes('kharcha')) {
+    return top
+      ? `Your biggest expense area is ${top.category} at about ₹${Number(top.amount).toLocaleString('en-IN')}. A practical next step is to set a cap for this category and track it weekly.`
+      : `Not enough spending data yet. Add more transactions and I can identify your biggest budget pressure points.`;
+  }
+
+  if (q.includes('tax')) {
+    return `For tax planning, keep salary, rent, insurance, medical, and investment-related entries clearly tagged. Use the Tax Estimator in More → Indian Tax Estimator to compare old vs new regime.`;
+  }
+
+  if (q.includes('summary') || q.includes('report') || q.includes('insight')) {
+    return `You have ${count} tracked transactions. Income: ₹${income.toLocaleString('en-IN')}, Expense: ₹${expense.toLocaleString('en-IN')}, Net: ₹${net.toLocaleString('en-IN')}. ${top ? `Top expense category: ${top.category}.` : ''}`;
+  }
+
+  return `Current snapshot: income ₹${income.toLocaleString('en-IN')}, expense ₹${expense.toLocaleString('en-IN')}, net ₹${net.toLocaleString('en-IN')}. ${top ? `Highest expense category is ${top.category}.` : 'Add more data for deeper insights.'}`;
+}
+
 export async function parseTransactionText(
   text: string,
   providerConfig?: AIProviderConfig

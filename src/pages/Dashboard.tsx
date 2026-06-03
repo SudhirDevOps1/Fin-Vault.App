@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -15,6 +15,7 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { StatCard } from '@/components/StatCard';
 import { AddTransactionModal } from '@/components/AddTransactionModal';
 import { ReceiptModal } from '@/components/ReceiptModal';
+import { AIAssistantPanel } from '@/components/AIAssistantPanel';
 import { db } from '@/lib/db';
 import type { Transaction, Category } from '@/types';
 
@@ -30,7 +31,7 @@ export function Dashboard() {
   const categoryBreakdown = getCategoryBreakdown(now.getFullYear(), now.getMonth() + 1);
   const recentTransactions = transactions.slice(0, 10);
 
-  useMemo(() => {
+  useEffect(() => {
     db.categories.toArray().then(setCategories);
   }, []);
 
@@ -224,6 +225,31 @@ export function Dashboard() {
             </div>
           </div>
         </div>
+
+        <AIAssistantPanel
+          pageKey="dashboard"
+          title="AI Dashboard Insights"
+          context={{
+            page: 'dashboard',
+            month: format(now, 'yyyy-MM'),
+            totalIncome: currentMonthSummary.totalIncome,
+            totalExpense: currentMonthSummary.totalExpense,
+            net: currentMonthSummary.netSavings,
+            savingsRate: Number(savingsRate),
+            transactions: transactions.slice(0, 40).map(tx => ({
+              amount: tx.amount,
+              category: tx.category,
+              description: tx.description,
+              date: tx.date,
+            })),
+          }}
+          suggestions={[
+            'Give me a monthly summary',
+            'Where can I reduce spending?',
+            'What is my biggest expense risk?',
+            'How can I improve savings this month?'
+          ]}
+        />
 
         {/* Recent Transactions */}
         <div className="rounded-[20px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">

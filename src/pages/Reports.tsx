@@ -25,6 +25,7 @@ import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { useTransactions } from '@/hooks/useTransactions';
 import { db } from '@/lib/db';
 import type { Category } from '@/types';
+import { AIAssistantPanel } from '@/components/AIAssistantPanel';
 
 export function Reports() {
   const { transactions, getCategoryBreakdown } = useTransactions();
@@ -243,6 +244,28 @@ export function Reports() {
             </div>
           </div>
         </div>
+
+        <AIAssistantPanel
+          pageKey="reports"
+          title="AI Report Analyst"
+          context={{
+            page: 'reports',
+            selectedYear,
+            selectedMonth,
+            monthlyData,
+            categoryData,
+            dailyData: dailyData.slice(0, 31),
+            totalIncome: totalYearIncome,
+            totalExpense: totalYearExpense,
+            net: totalYearSavings,
+          }}
+          suggestions={[
+            'Explain my yearly trend',
+            'Which categories need attention?',
+            'Summarize this month in simple words',
+            'Give me 3 practical actions for next month'
+          ]}
+        />
 
         {/* Bottom Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -8,12 +8,17 @@ import {
   Receipt, 
   Download,
   Calendar,
-  ChevronDown
+  ChevronDown,
+  FileSpreadsheet,
+  Smartphone
 } from 'lucide-react';
 import { format, subMonths } from 'date-fns';
 import { useTransactions } from '@/hooks/useTransactions';
 import { AddTransactionModal } from '@/components/AddTransactionModal';
 import { ReceiptModal } from '@/components/ReceiptModal';
+import { BankStatementImport } from '@/components/BankStatementImport';
+import { BankSMSParser } from '@/components/BankSMSParser';
+import { AIAssistantPanel } from '@/components/AIAssistantPanel';
 import { db } from '@/lib/db';
 import { useToast } from '@/contexts/ToastContext';
 import type { Transaction, Category, ExportData } from '@/types';
@@ -23,6 +28,8 @@ export function Transactions() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | null>(null);
   const [receiptTransaction, setReceiptTransaction] = useState<Transaction | null>(null);
+  const [showCSVImport, setShowCSVImport] = useState(false);
+  const [showSMSParser, setShowSMSParser] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -142,13 +149,29 @@ export function Transactions() {
                 JSON
               </button>
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold shadow-lg shadow-violet-500/25 hover:shadow-xl transition-all"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline">Add</span>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowSMSParser(true)}
+                title="Parse Bank SMS"
+                className="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              >
+                <Smartphone className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setShowCSVImport(true)}
+                title="Import Bank CSV"
+                className="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold shadow-lg shadow-violet-500/25 hover:shadow-xl transition-all"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="hidden sm:inline">Add</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -241,6 +264,36 @@ export function Transactions() {
             </div>
           )}
         </div>
+
+        <AIAssistantPanel
+          pageKey="transactions"
+          title="AI Transaction Analyst"
+          context={{
+            page: 'transactions',
+            filterSummary: {
+              search: searchTerm,
+              category: filterCategory,
+              type: filterType,
+              startDate: dateRange.start,
+              endDate: dateRange.end,
+            },
+            totalIncome: filteredTransactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0),
+            totalExpense: Math.abs(filteredTransactions.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0)),
+            net: totalFiltered,
+            transactions: filteredTransactions.slice(0, 60).map(tx => ({
+              amount: tx.amount,
+              category: tx.category,
+              description: tx.description,
+              date: tx.date,
+            })),
+          }}
+          suggestions={[
+            'Summarize these filtered transactions',
+            'Find unusual expenses',
+            'What are the top recurring spending patterns?',
+            'Suggest better categorization or budgeting tips'
+          ]}
+        />
 
         {/* Transactions List */}
         <div className="rounded-[20px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
@@ -355,6 +408,20 @@ export function Transactions() {
         onClose={() => setReceiptTransaction(null)}
         transaction={receiptTransaction}
       />
+
+      {showCSVImport && (
+        <BankStatementImport
+          onClose={() => setShowCSVImport(false)}
+          onSuccess={refresh}
+        />
+      )}
+
+      {showSMSParser && (
+        <BankSMSParser
+          onClose={() => setShowSMSParser(false)}
+          onSuccess={refresh}
+        />
+      )}
     </div>
   );
 }

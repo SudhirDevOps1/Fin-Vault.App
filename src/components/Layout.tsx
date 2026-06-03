@@ -14,6 +14,7 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
+import { useKeyboardShortcuts, KeyboardShortcutsHelp } from '@/hooks/useKeyboardShortcuts';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -27,6 +28,7 @@ export function Layout() {
   const { effectiveTheme, toggleTheme } = useTheme();
   const { logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { showHelp, setShowHelp } = useKeyboardShortcuts();
 
   return (
     <div className="min-h-screen bg-[#fafafb] dark:bg-[#0a0a0c] text-zinc-900 dark:text-zinc-100">
@@ -137,6 +139,8 @@ export function Layout() {
           ))}
         </div>
       </nav>
+
+      <KeyboardShortcutsHelp show={showHelp} onClose={() => setShowHelp(false)} />
     </div>
   );
 }

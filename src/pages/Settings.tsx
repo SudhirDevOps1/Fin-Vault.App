@@ -24,6 +24,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { AISettings } from '@/components/AISettings';
 import { AIEngineConsole } from '@/components/AIEngineConsole';
+import { AIPrivacySettings } from '@/components/AIPrivacySettings';
 import { FirebaseSyncEngine } from '@/components/FirebaseSyncEngine';
 import { CategoryLimits } from '@/components/CategoryLimits';
 import type { AppSettings, ExportData } from '@/types';
@@ -412,6 +413,9 @@ export function Settings() {
             {/* AI ENGINE & AUTO-DETECT */}
             {activeTab === 'ai' && (
               <>
+                <div className="rounded-[20px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6">
+                  <AIPrivacySettings />
+                </div>
                 <div className="rounded-[20px] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6">
                   <AIEngineConsole />
                 </div>
