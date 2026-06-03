@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Brain, Shield, Sparkles, Send, Loader2, Trash2, Lock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Brain, Shield, Sparkles, Send, Loader2, Trash2, Lock, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { askFinanceAssistant, getAIPrivacyConfig, getActiveProvider } from '@/lib/aiProviders';
 import { useToast } from '@/contexts/ToastContext';
+import { Link } from 'react-router-dom';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -57,10 +58,21 @@ export function AIAssistantPanel({
     setExpanded(true);
     setLoading(true);
     try {
-      const answer = await askFinanceAssistant(prompt, context);
-      persistMessages([...next, { role: 'assistant', text: answer }]);
-    } catch {
-      addToast('error', 'AI response failed');
+      // Always pass the active provider explicitly so Gemini/Groq/etc. is used reliably
+      const active = getActiveProvider();
+      const answer = await askFinanceAssistant(prompt, context, active || undefined);
+      const usingLocal = !active;
+      persistMessages([
+        ...next,
+        { role: 'assistant', text: usingLocal ? `${answer}\n\n_(Offline mode — configure an AI provider in Settings → AI Engine & Auto-Detect for smarter answers.)_` : answer },
+      ]);
+      if (!active) {
+        addToast('info', 'Using offline assistant. Add an AI provider in Settings for stronger answers.');
+      }
+    } catch (err) {
+      addToast('error', 'AI response failed. Falling back to local assistant.');
+      const fallback = await askFinanceAssistant(prompt, context, undefined);
+      persistMessages([...next, { role: 'assistant', text: fallback }]);
     } finally {
       setLoading(false);
     }
@@ -105,6 +117,21 @@ export function AIAssistantPanel({
               AI is never called automatically here. It only runs when you click a suggestion or send a prompt. In safe mode, IDs, account-like text, receipt images, and sensitive references are redacted.
             </p>
           </div>
+
+          {!provider && !localStorage.getItem('finvault_offline_hint_dismissed') && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 text-xs">
+              <AlertCircle className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                Using offline assistant (local rules). For smarter answers, add a free API key in <Link to="/settings" className="underline">Settings → AI Engine & Auto-Detect</Link>.
+              </div>
+              <button
+                onClick={() => localStorage.setItem('finvault_offline_hint_dismissed', 'true')}
+                className="text-xs px-2 py-1 rounded text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           {suggestions.length > 0 && (
             <div>
